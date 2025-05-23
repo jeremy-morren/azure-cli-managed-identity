@@ -1,42 +1,4 @@
-﻿// using System.Diagnostics;
-// using Azure.Core;
-// using Azure.Identity;
-//
-// var psi = new ProcessStartInfo()
-// {
-//     FileName = "/bin/sh",
-//     Arguments = "-c \"az --version\"",
-//     UseShellExecute = false,
-//     ErrorDialog = false,
-//     CreateNoWindow = true,
-//     RedirectStandardOutput = true
-// };
-//
-// try
-// {
-//     // using var process = Process.Start(psi)!;
-//     // process.WaitForExit();
-//     //
-//     // var output = process.StandardOutput.ReadToEnd();
-//     // Console.WriteLine(output);
-//     // return process.ExitCode;
-//     
-//     var context = new TokenRequestContext(["https://management.azure.com/.default"]);
-//     var token = new AzureCliCredential().GetToken(context);
-//     return 0;
-//
-// }
-// catch (Exception ex)
-// {
-//     Console.WriteLine(ex);
-//     return 1;
-// }
-//
-
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.Json;
+﻿using System.Net;
 using AzCliManagedIdentity;
 using Azure.Identity;
 

@@ -2,6 +2,9 @@
 
 public enum ErrorCode
 {
+    /// <summary>
+    /// No request error (can be used to indicate Not Found)
+    /// </summary>
     None,
     
     /// <summary>

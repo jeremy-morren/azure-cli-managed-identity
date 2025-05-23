@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Net;
 using System.Web;
 using Azure.Core;
 // ReSharper disable MemberCanBePrivate.Global

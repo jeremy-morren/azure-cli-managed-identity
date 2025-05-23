@@ -1,8 +1,6 @@
-using System.Diagnostics.CodeAnalysis;
 using Azure.Core;
 using Azure.Core.Pipeline;
 using Azure.Identity;
-using Shouldly;
 
 namespace AzCliManagedIdentity.Tests;
 

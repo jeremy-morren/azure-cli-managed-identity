@@ -1,12 +1,8 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
-using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
 using Azure.Core;
-using Azure.Identity;
 using Microsoft.IdentityModel.Tokens;
-using Shouldly;
-using Xunit.Abstractions;
 
 namespace AzCliManagedIdentity.Tests;
 

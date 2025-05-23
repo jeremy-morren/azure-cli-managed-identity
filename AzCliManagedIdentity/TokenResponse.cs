@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.IdentityModel.Tokens.Jwt;
-using System.Text.Json.Serialization;
 using Azure.Core;
 
 namespace AzCliManagedIdentity;

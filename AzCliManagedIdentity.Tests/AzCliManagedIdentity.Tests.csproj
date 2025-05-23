@@ -7,6 +7,9 @@
 
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        
+        <!-- Suppress xUnit1045:Avoid using TheoryData type arguments that might not be serializable -->
+        <NoWarn>$(NoWarn);xUnit1045</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -22,6 +25,7 @@
 
     <ItemGroup>
         <Using Include="Xunit"/>
+        <Using Include="Shouldly"/>
     </ItemGroup>
 
     <ItemGroup>
