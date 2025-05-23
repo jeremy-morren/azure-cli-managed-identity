@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using AzCliManagedIdentity;
@@ -39,6 +40,8 @@ try
         CgiResponse.WriteResponse(HttpStatusCode.NotImplemented);
         return 0;
     }
+
+    Console.Error.WriteLine($"Is windows: {RuntimeInformation.IsOSPlatform(OSPlatform.Windows)}");
 
     // var service = new TokenService(
     //     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".azure"));
