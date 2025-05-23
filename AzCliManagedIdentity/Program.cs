@@ -1,8 +1,44 @@
-﻿using System.Net;
+﻿// using System.Diagnostics;
+// using Azure.Core;
+// using Azure.Identity;
+//
+// var psi = new ProcessStartInfo()
+// {
+//     FileName = "/bin/sh",
+//     Arguments = "-c \"az --version\"",
+//     UseShellExecute = false,
+//     ErrorDialog = false,
+//     CreateNoWindow = true,
+//     RedirectStandardOutput = true
+// };
+//
+// try
+// {
+//     // using var process = Process.Start(psi)!;
+//     // process.WaitForExit();
+//     //
+//     // var output = process.StandardOutput.ReadToEnd();
+//     // Console.WriteLine(output);
+//     // return process.ExitCode;
+//     
+//     var context = new TokenRequestContext(["https://management.azure.com/.default"]);
+//     var token = new AzureCliCredential().GetToken(context);
+//     return 0;
+//
+// }
+// catch (Exception ex)
+// {
+//     Console.WriteLine(ex);
+//     return 1;
+// }
+//
+
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using AzCliManagedIdentity;
+using Azure.Identity;
 
 var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
@@ -27,10 +63,21 @@ try
     }
 
     // Check if the request is a managed identity request
-    if (!TokenRequest.TryCreateRequest(cgiRequest, out var tokenRequest, out var isBadRequest))
+    if (!TokenRequest.TryCreateRequest(cgiRequest, out var tokenRequest, out var errorCode))
     {
-        // Not found
-        CgiResponse.WriteResponse(isBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.NotFound);
+        if (errorCode == ErrorCode.None)
+        {
+            // Not found
+            CgiResponse.WriteResponse(HttpStatusCode.NotFound);
+            return 0;
+        }
+        
+        // Bad request
+        var error = ErrorResponseFactory.FromCode(errorCode);
+        CgiResponse.WriteJsonResponse(HttpStatusCode.BadRequest,
+            error,
+            AccessTokenJsonSerializerContext.Default.ErrorResponse);
+        
         return 0;
     }
 
@@ -41,17 +88,29 @@ try
         return 0;
     }
 
-    Console.Error.WriteLine($"Is windows: {RuntimeInformation.IsOSPlatform(OSPlatform.Windows)}");
-
     // var service = new TokenService(
     //     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".azure"));
 
     // ~/.azure must be mounted in the container at /azureCli. TODO: Allow this to be configured.
     var service = new TokenService("/azureCli");
 
-    var token = await service.RequestAzureCliToken(tokenRequest, cts.Token);
-    var json = JsonSerializer.Serialize(token, AccessTokenJsonSerializerContext.Default.TokenResponse);
-    CgiResponse.WriteResponse(HttpStatusCode.OK, contentType: "application/json", body: json);
+    // Try to get the token, write error if it fails
+    try
+    {
+        var token = await service.RequestAzureCliToken(tokenRequest, cts.Token);
+        CgiResponse.WriteJsonResponse(HttpStatusCode.OK,
+            token,
+            AccessTokenJsonSerializerContext.Default.TokenResponse);
+    }
+    catch (AuthenticationFailedException ex)
+    {
+        var error = ExceptionErrorResponseFactory.FromException(ex);
+        // Write error to standard error for logging
+        Console.Error.WriteLine($"{ex.GetType().FullName}: {ex.Message}");
+        CgiResponse.WriteJsonResponse(HttpStatusCode.BadRequest,
+            error,
+            AccessTokenJsonSerializerContext.Default.ErrorResponse);
+    }
 
     return 0;
 }
@@ -63,19 +122,4 @@ catch (Exception ex)
 {
     CgiResponse.WriteError(ex.ToString());
     return 1;
-}
-
-static string SerializeEnvVars()
-{
-    var result = new StringBuilder();
-    foreach (var keyObj in Environment.GetEnvironmentVariables().Keys)
-    {
-        if (keyObj is string key)
-        {
-            var value = Environment.GetEnvironmentVariable(key);
-            result.AppendLine($"{key}={value}");
-        }
-    }
-
-    return result.ToString();
 }

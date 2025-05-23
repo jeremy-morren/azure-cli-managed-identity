@@ -1,6 +1,15 @@
 #!/bin/sh
 
 set -e
+apt-get update
+apt-get install -y --no-install-recommends \
+    curl \
+    jq \
+    apt-transport-https \
+    ca-certificates \
+    python3 \
+    python3-pip \
+    python3-venv
 
 # Use /opt/azcli as the location for the Azure CLI
 VENV='/opt/azcli'
@@ -49,3 +58,5 @@ du -s -h -t 1M /opt/azcli/lib/python3.*/site-packages/azure/cli/command_modules/
     rm -r /opt/azcli/lib/python3.*/site-packages/azure/mgmt/resource/policy/v*
     rm -r /opt/azcli/lib/python3.*/site-packages/azure/mgmt/resource/templatespecs/v*
     rm -r /opt/azcli/lib/python3.*/site-packages/azure/mgmt/resource/resources/v*
+    
+rm -rf /var/lib/apt/lists/*

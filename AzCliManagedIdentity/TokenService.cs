@@ -19,8 +19,7 @@ public class TokenService
 
         // First copy the Azure CLI config files to a temp directory
         using var temp = new TempDirectory();
-        foreach (var file in GetFilesToCopy(_azureCliConfig))
-            File.Copy(file, Path.Combine(temp.Path, Path.GetFileName(file)));
+        CopyFiles(_azureCliConfig, temp.Path);
 
         // Set the environment variable to point to the temp directory
         Environment.SetEnvironmentVariable("AZURE_CONFIG_DIR", temp.Path, EnvironmentVariableTarget.Process);
@@ -28,6 +27,22 @@ public class TokenService
         var credential = new AzureCliCredential();
         var token = await credential.GetTokenAsync(request.CreateTokenRequestContext(), ct);
         return new TokenResponse(token);
+    }
+    
+    public static void CopyFiles(string azureCliConfig, string tempDir)
+    {
+        foreach (var file in GetFilesToCopy(azureCliConfig))
+            File.Copy(file, Path.Combine(tempDir, Path.GetFileName(file)));
+        
+        // Check for the msal_token_cache.json file. If not present, write warning about token encryption
+        var msalTokenCacheFile = Path.Combine(tempDir, "msal_token_cache.json");
+        if (!File.Exists(msalTokenCacheFile))
+            Console.Error.WriteLine("""
+                                    Warning: msal_token_cache.json not found. This means token encryption is enabled (default on Windows).
+                                    This will cause all token requests to fail. To fix this error, run the following command:
+                                    az config set core.encrypt_token_cache=false
+                                    See https://github.com/Azure/azure-cli/issues/29193#issuecomment-2174836155
+                                    """);
     }
 
     public static IEnumerable<string> GetFilesToCopy(string azureCliConfig) =>

@@ -1,4 +1,6 @@
 ﻿using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace AzCliManagedIdentity;
 
@@ -10,19 +12,31 @@ public static class CgiResponse
     public static void WriteResponse(
         HttpStatusCode statusCode,
         string? contentType = null,
-        Dictionary<string, string>? headers = null,
         string? body = null)
     {
         Console.Out.WriteLine($"Status: {(int)statusCode}");
         if (contentType != null)
             Console.Out.WriteLine($"Content-Type: {contentType}");
-        if (headers != null)
-            foreach (var (key, value) in headers)
-                Console.Out.WriteLine($"{key}: {value}");
         Console.Out.WriteLine();
         if (body != null)
             Console.Out.WriteLine(body);
     }
+    
+    /// <summary>
+    /// Writes a JSON CGI response.
+    /// </summary>
+    public static void WriteJsonResponse<T>(
+        HttpStatusCode statusCode,
+        T value,
+        JsonTypeInfo<T> jsonTypeInfo)
+    {
+        var json = JsonSerializer.Serialize(value, jsonTypeInfo);
+        Console.Out.WriteLine($"Status: {(int)statusCode}");
+        Console.Out.WriteLine("Content-Type: application/json");
+        Console.Out.WriteLine();
+        Console.Out.WriteLine(json);
+    }
+
 
     /// <summary>
     /// Writes a CGI error response.

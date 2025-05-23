@@ -5,12 +5,19 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="Azure.Identity" Version="1.14.0" />
       <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="8.0.16" />
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.10.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="..\.dockerignore">
+        <Link>.dockerignore</Link>
+      </Content>
     </ItemGroup>
 
 </Project>

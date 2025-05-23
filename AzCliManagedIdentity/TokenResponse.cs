@@ -1,4 +1,5 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json.Serialization;
 using Azure.Core;
 
@@ -23,24 +24,18 @@ public class TokenResponse
         _jwtToken = handler.ReadJwtToken(accessToken.Token);
     }
 
-    [JsonPropertyName("resource")]
     public string? Resource => GetClaimValueString("aud");
 
-    [JsonPropertyName("access_token")]
     public string AccessToken => _accessToken.Token;
 
-    [JsonPropertyName("token_type")]
     public string TokenType => _accessToken.TokenType;
 
-    [JsonPropertyName("expires_on")]
     public long ExpiresOn => GetClaimValueLong("exp");
 
-    [JsonPropertyName("not_before")]
     public long NotBefore => GetClaimValueLong("nbf");
 
-    [JsonPropertyName("expires_in")]
     public long ExpiresIn => ExpiresOn - GetClaimValueLong("iat");
-
+    
     private long GetClaimValueLong(string claimType)
     {
         var claim = _jwtToken.Claims.FirstOrDefault(c => c.Type == claimType);
@@ -54,4 +49,11 @@ public class TokenResponse
         var claim = _jwtToken.Claims.FirstOrDefault(c => c.Type == claimType);
         return claim?.Value;
     }
+
+    /// <summary>
+    /// Not used by Managed Identity, included to complete the response.
+    /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static")]
+    [SuppressMessage("ReSharper", "UnusedMember.Global")]
+    public string RefreshToken => string.Empty;
 }

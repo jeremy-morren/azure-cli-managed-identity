@@ -63,15 +63,15 @@ public record TokenRequest
     public static bool TryCreateRequest(
         CgiRequest cgiRequest,
         [MaybeNullWhen(false)] out TokenRequest tokenRequest,
-        out bool isBadRequest)
+        out ErrorCode errorCode)
     {
         tokenRequest = null;
-        isBadRequest = false;
+        errorCode = ErrorCode.None;
 
-        if (TryCreateDefaultRequest(cgiRequest, out tokenRequest, out isBadRequest))
+        if (TryCreateDefaultRequest(cgiRequest, out tokenRequest, out errorCode))
             return true;
 
-        if (TryCreateCloudShellRequest(cgiRequest, out tokenRequest, out isBadRequest))
+        if (TryCreateCloudShellRequest(cgiRequest, out tokenRequest, out errorCode))
             return true;
 
         return false;
@@ -83,10 +83,10 @@ public record TokenRequest
     public static bool TryCreateDefaultRequest(
         CgiRequest cgiRequest,
         [MaybeNullWhen(false)] out TokenRequest tokenRequest,
-        out bool isBadRequest)
+        out ErrorCode errorCode)
     {
         tokenRequest = null;
-        isBadRequest = false;
+        errorCode = ErrorCode.None;
 
         // Method must be GET
         if (!Match(cgiRequest.Method, "GET"))
@@ -96,9 +96,9 @@ public record TokenRequest
             return false;
 
         // Check for header 'Metadata: true'
-        if (!cgiRequest.Headers.TryGetValue("Metadata", out var metadata) || metadata != "true")
+        if (!HasMetadataHeader(cgiRequest))
         {
-            isBadRequest = true;
+            errorCode = ErrorCode.MetadataHeaderMissing;
             return false;
         }
 
@@ -109,13 +109,13 @@ public record TokenRequest
             || !DateOnly.TryParseExact(apiVersion, "yyyy-MM-dd", out var apiVersionValue)
             || apiVersionValue < new DateOnly(2018, 2, 1))
         {
-            isBadRequest = true;
+            errorCode = ErrorCode.BadRequest;
             return false;
         }
 
         if (!query.TryGetValue("resource", out var resource) || string.IsNullOrEmpty(resource))
         {
-            isBadRequest = true;
+            errorCode = ErrorCode.ResourceNotSpecified;
             return false;
         }
 
@@ -145,10 +145,10 @@ public record TokenRequest
     /// </remarks>
     public static bool TryCreateCloudShellRequest(CgiRequest cgiRequest,
         [MaybeNullWhen(false)] out TokenRequest request,
-        out bool isBadRequest)
+        out ErrorCode errorCode)
     {
         request = null;
-        isBadRequest = false;
+        errorCode = ErrorCode.None;
 
         // Method must be POST
         if (!Match(cgiRequest.Method, "POST"))
@@ -163,16 +163,16 @@ public record TokenRequest
             return false;
 
         // Check for header 'Metadata: true'
-        if (!cgiRequest.Headers.TryGetValue("Metadata", out var metadata) || metadata != "true")
+        if (!HasMetadataHeader(cgiRequest))
         {
-            isBadRequest = true;
+            errorCode = ErrorCode.MetadataHeaderMissing;
             return false;
         }
 
         var body = cgiRequest.ReadFormUrlEncodedBody();
         if (!body.TryGetValue("resource", out var resource) || string.IsNullOrEmpty(resource))
         {
-            isBadRequest = true;
+            errorCode = ErrorCode.ResourceNotSpecified;
             return false;
         }
 
@@ -198,6 +198,12 @@ public record TokenRequest
             result[key] = collection[key];
         return result;
     }
+    
+    /// <summary>
+    /// Checks whether the request has the <c>Metadata</c> header set to <c>true</c>.
+    /// </summary>
+    public static bool HasMetadataHeader(CgiRequest cgiRequest) => 
+        cgiRequest.Headers.TryGetValue("Metadata", out var metadata) && metadata == "true";
 
     /// <summary>
     /// Gets values of <c>x-ms-client-request-id</c> and <c>x-ms-return-client-request-id</c> headers.
