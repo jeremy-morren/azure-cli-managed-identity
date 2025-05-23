@@ -39,15 +39,18 @@ public class TokenService
         // Check for az.json file. If not present, print warning about incorrect volume mount
         var azJsonFile = Path.Combine(tempDir, "az.json");
         if (!File.Exists(azJsonFile))
+        {
             Console.Error.WriteLine($$"""
-                                    Warning: {{azJsonFile}} not found. Ensure that the Azure CLI config directory is mounted correctly.
-                                    Example docker-compose.yml:
-                                    services:
-                                      managed-identity:
-                                        image: jeremysv/azcli-managed-identity
-                                        volumes:
-                                          - "{USERPROFILE:-~}/.azure:/azureCli:ro"
-                                    """);
+                                   Warning: {{azJsonFile}} not found. Ensure that the Azure CLI config directory is mounted correctly.
+                                   Example docker-compose.yml:
+                                   services:
+                                     managed-identity:
+                                       image: jeremysv/azcli-managed-identity
+                                       volumes:
+                                         - "{USERPROFILE:-~}/.azure:/azureCli:ro"
+                                   """);
+            return;
+        }
         
         // Check for the msal_token_cache.json file. If not present, write warning about token encryption
         var msalTokenCacheFile = Path.Combine(tempDir, "msal_token_cache.json");

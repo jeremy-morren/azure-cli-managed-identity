@@ -4,7 +4,7 @@ services:
       context: ../
       dockerfile: Container/Dockerfile
     volumes:
-      - "${USERPROFILE:-~}/.azue:/azureCli:ro"
+      - "${USERPROFILE:-~}/.azure:/azureCli:ro"
     cpus: '0.25'
     mem_limit: 16m
 

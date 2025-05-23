@@ -5,11 +5,11 @@ using Azure.Identity;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-var credential = new DefaultAzureCredential();
 var client = new HttpClient();
 app.MapGet("/", async (context) =>
 {
     var ct = context.RequestAborted;
+    var credential = new DefaultAzureCredential();
     var token = await credential.GetTokenAsync(new TokenRequestContext(["https://management.azure.com/.default"]), ct);
     
     using var request = new HttpRequestMessage(HttpMethod.Get, "https://management.azure.com/subscriptions?api-version=2020-01-01");
