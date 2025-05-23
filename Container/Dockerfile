@@ -28,7 +28,7 @@ RUN chmod +x InstallAzureCliTrimmed.sh && \
     rm -f ./InstallAzureCliTrimmed.sh
     
 # Add az cli virtual env to path
-ENV PATH="/opt/azcli:$PATH"
+ENV PATH="/opt/azcli/bin:$PATH"
 
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
