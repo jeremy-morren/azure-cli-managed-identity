@@ -1,0 +1,54 @@
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Net;
+using System.Security.Claims;
+using System.Text.Json;
+using Azure.Core;
+using Azure.Identity;
+using Microsoft.IdentityModel.Tokens;
+using Shouldly;
+using Xunit.Abstractions;
+
+namespace AzCliManagedIdentity.Tests;
+
+public class TokenResponseTests
+{
+    [Fact]
+    public void GetAccessToken()
+    {
+        var notBefore = DateTimeOffset.Now;
+        var issuedAt = notBefore.AddMinutes(-1);
+        var expiry = issuedAt.AddMinutes(5);
+
+        var token = CreateAccessToken(notBefore, issuedAt, expiry);
+        var accessToken = new AccessToken(token, expiry, null, tokenType: "Token");
+        var response = new TokenResponse(accessToken, "Resource");
+
+        response.AccessToken.ShouldBe(token);
+        response.Resource.ShouldBe("Resource");
+        response.TokenType.ShouldBe("Token");
+        response.ExpiresOn.ShouldBe(expiry.ToUnixTimeSeconds());
+        response.NotBefore.ShouldBe(notBefore.ToUnixTimeSeconds());
+        response.ExpiresIn.ShouldBe(expiry.ToUnixTimeSeconds() - issuedAt.ToUnixTimeSeconds());
+
+        // Test serialization
+        JsonSerializer.Serialize(response, AccessTokenJsonSerializerContext.Default.TokenResponse).ShouldNotBeNull();
+    }
+
+    private static string CreateAccessToken(
+        DateTimeOffset notBefore,
+        DateTimeOffset issuedAt,
+        DateTimeOffset expiry)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(),
+            NotBefore = notBefore.UtcDateTime,
+            IssuedAt = issuedAt.UtcDateTime,
+            Expires = expiry.UtcDateTime,
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(new byte[32]), SecurityAlgorithms.HmacSha256)
+        };
+        var token = handler.CreateToken(tokenDescriptor);
+        return handler.WriteToken(token);
+    }
+}
