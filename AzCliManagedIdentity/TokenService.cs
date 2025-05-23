@@ -30,8 +30,24 @@ public class TokenService
     
     public static void CopyFiles(string azureCliConfig, string tempDir)
     {
+        if (!Directory.Exists(azureCliConfig))
+            throw new DirectoryNotFoundException($"Azure CLI config directory not found: {azureCliConfig}");
+        
         foreach (var file in GetFilesToCopy(azureCliConfig))
             File.Copy(file, Path.Combine(tempDir, Path.GetFileName(file)));
+        
+        // Check for az.json file. If not present, print warning about incorrect volume mount
+        var azJsonFile = Path.Combine(tempDir, "az.json");
+        if (!File.Exists(azJsonFile))
+            Console.Error.WriteLine($$"""
+                                    Warning: {{azJsonFile}} not found. Ensure that the Azure CLI config directory is mounted correctly.
+                                    Example docker-compose.yml:
+                                    services:
+                                      managed-identity:
+                                        image: jeremysv/azcli-managed-identity
+                                        volumes:
+                                          - "{USERPROFILE:-~}/.azure:/azureCli:ro"
+                                    """);
         
         // Check for the msal_token_cache.json file. If not present, write warning about token encryption
         var msalTokenCacheFile = Path.Combine(tempDir, "msal_token_cache.json");
