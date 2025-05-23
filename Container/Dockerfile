@@ -26,8 +26,10 @@ COPY Container/InstallAzureCliTrimmed.sh ./
 RUN chmod +x InstallAzureCliTrimmed.sh && \
     ./InstallAzureCliTrimmed.sh && \
     rm -f ./InstallAzureCliTrimmed.sh
+    
 # Add az cli virtual env to path
-ENV PATH="/opt/azcli/bin:$PATH"
+ENV PATH="/opt/azcli:$PATH"
+
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 RUN apt-get update && apt-get install -y clang zlib1g-dev

@@ -25,12 +25,11 @@ try
         return 1;
     }
 
-    CgiResponse.WriteResponse(HttpStatusCode.OK, body: $"{SerializeEnvVars()}\n{cgiRequest}");
-    return 0;
-
-    if (!TokenRequest.TryCreateDefaultRequest(cgiRequest, out var tokenRequest, out var errorCode))
+    // Check if the request is a managed identity request
+    if (!TokenRequest.TryCreateRequest(cgiRequest, out var tokenRequest, out var isBadRequest))
     {
-        CgiResponse.WriteResponse(errorCode.Value);
+        // Not found
+        CgiResponse.WriteResponse(isBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.NotFound);
         return 0;
     }
 

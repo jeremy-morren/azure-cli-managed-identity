@@ -15,7 +15,7 @@ public class ManagedIdentityTests
     [Fact]
     public void GetCredentialLocal()
     {
-        Environment.SetEnvironmentVariable("IMDS_ENDPOINT", "http://localhost:8080");
+        Environment.SetEnvironmentVariable("MSI_ENDPOINT", "http://localhost:8080/oauth2/token");
         // Environment.SetEnvironmentVariable("MSI_ENDPOINT", "http://localhost:8080");
         var options = new ManagedIdentityCredentialOptions()
         {
@@ -23,7 +23,7 @@ public class ManagedIdentityTests
             {
                 MaxRetries = 0
             },
-            Transport = new TestTransport()
+            // Transport = new TestTransport()
         };
         var credential = new ManagedIdentityCredential(options);
         var token = credential.GetToken(new TokenRequestContext(["https://management.azure.com/.default"]));

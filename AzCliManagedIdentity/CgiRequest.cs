@@ -1,4 +1,6 @@
 ﻿using System.Text;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Primitives;
 
 namespace AzCliManagedIdentity;
 
@@ -63,6 +65,7 @@ public class CgiRequest
             Method = method,
             RequestUri = new Uri(baseUri, relativeUri),
             Headers = GetCgiHeadersFromEnvironment(),
+            ContentType = Environment.GetEnvironmentVariable("CONTENT_TYPE"),
             Body = body
         };
     }
@@ -87,6 +90,10 @@ public class CgiRequest
         return result;
     }
 
+    /// <summary>
+    /// Shows the request in a human-readable format.
+    /// </summary>
+    /// <returns></returns>
     public override string ToString()
     {
         var sb = new StringBuilder();
@@ -96,8 +103,18 @@ public class CgiRequest
         foreach (var (key, value) in Headers)
             sb.AppendLine($"{key}: {value}");
         sb.AppendLine();
-        sb.AppendLine(Encoding.UTF8.GetString(Body)); // Body ends with a new line
+        if (Body.Length > 0)
+            sb.AppendLine(Encoding.UTF8.GetString(Body)); // Body ends with a new line
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Reads the body as a form URL encoded request.
+    /// </summary>
+    public Dictionary<string, StringValues> ReadFormUrlEncodedBody()
+    {
+        using var ms = new MemoryStream(Body);
+        using var reader = new FormReader(ms);
+        return reader.ReadForm();
+    }
 }

@@ -16,14 +16,14 @@ namespace AzCliManagedIdentity;
 public record TokenRequest
 {
     /// <summary>
-    /// The parsed <c>api-version</c> parameter (provided as yyyy-MM-dd).
-    /// </summary>
-    public required DateOnly ApiVersion { get; init; }
-
-    /// <summary>
     /// The <c>resource</c> query parameter.
     /// </summary>
     public required string Resource { get; init; }
+
+    /// <summary>
+    /// The parsed <c>api-version</c> parameter (provided as yyyy-MM-dd).
+    /// </summary>
+    public DateOnly? ApiVersion { get; init; }
 
     /// <summary>
     /// The <c>object_id</c> query parameter.
@@ -58,48 +58,64 @@ public record TokenRequest
     #region Create
 
     /// <summary>
+    /// Try to create a <see cref="TokenRequest"/> from the CGI request.
+    /// </summary>
+    public static bool TryCreateRequest(
+        CgiRequest cgiRequest,
+        [MaybeNullWhen(false)] out TokenRequest tokenRequest,
+        out bool isBadRequest)
+    {
+        tokenRequest = null;
+        isBadRequest = false;
+
+        if (TryCreateDefaultRequest(cgiRequest, out tokenRequest, out isBadRequest))
+            return true;
+
+        if (TryCreateCloudShellRequest(cgiRequest, out tokenRequest, out isBadRequest))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
     /// Checks if the request URL is a managed identity request.
     /// </summary>
     public static bool TryCreateDefaultRequest(
         CgiRequest cgiRequest,
         [MaybeNullWhen(false)] out TokenRequest tokenRequest,
-        [NotNullWhen(false)] out HttpStatusCode? errorCode)
+        out bool isBadRequest)
     {
         tokenRequest = null;
-        errorCode = null;
+        isBadRequest = false;
 
         // Method must be GET
         if (!Match(cgiRequest.Method, "GET"))
-        {
-            errorCode = HttpStatusCode.NotFound;
             return false;
-        }
 
         if (!Match(cgiRequest.RequestUri.AbsolutePath, "/metadata/identity/oauth2/token"))
-        {
-            errorCode = HttpStatusCode.NotFound;
             return false;
-        }
 
         // Check for header 'Metadata: true'
         if (!cgiRequest.Headers.TryGetValue("Metadata", out var metadata) || metadata != "true")
         {
-            errorCode = HttpStatusCode.BadRequest;
+            isBadRequest = true;
             return false;
         }
 
         var query = ParseQuery(cgiRequest.RequestUri.Query);
+
+        // Ensure api version is present and valid
         if (!query.TryGetValue("api-version", out var apiVersion)
             || !DateOnly.TryParseExact(apiVersion, "yyyy-MM-dd", out var apiVersionValue)
             || apiVersionValue < new DateOnly(2018, 2, 1))
         {
-            errorCode = HttpStatusCode.BadRequest;
+            isBadRequest = true;
             return false;
         }
 
         if (!query.TryGetValue("resource", out var resource) || string.IsNullOrEmpty(resource))
         {
-            errorCode = HttpStatusCode.BadRequest;
+            isBadRequest = true;
             return false;
         }
 
@@ -127,9 +143,12 @@ public record TokenRequest
     /// <remarks>
     /// <see cref="Microsoft.Identity.Client.ManagedIdentity.CloudShellManagedIdentitySource.CreateRequest"/>
     /// </remarks>
-    public static bool TryCreateCloudShellRequest(CgiRequest cgiRequest, [MaybeNullWhen(false)] out TokenRequest request)
+    public static bool TryCreateCloudShellRequest(CgiRequest cgiRequest,
+        [MaybeNullWhen(false)] out TokenRequest request,
+        out bool isBadRequest)
     {
         request = null;
+        isBadRequest = false;
 
         // Method must be POST
         if (!Match(cgiRequest.Method, "POST"))
@@ -139,15 +158,33 @@ public record TokenRequest
         if (!Match(cgiRequest.RequestUri.AbsolutePath, "/oauth2/token"))
             return false;
 
+        // Check for FORM urlencoded content type
+        if (!Match(cgiRequest.ContentType, "application/x-www-form-urlencoded"))
+            return false;
+
         // Check for header 'Metadata: true'
         if (!cgiRequest.Headers.TryGetValue("Metadata", out var metadata) || metadata != "true")
+        {
+            isBadRequest = true;
             return false;
+        }
 
-        // Check for header 'ContentType: application/x-www-form-urlencoded'
-        if (!cgiRequest.Headers.TryGetValue("ContentType", out var contentType) || contentType != "application/x-www-form-urlencoded")
+        var body = cgiRequest.ReadFormUrlEncodedBody();
+        if (!body.TryGetValue("resource", out var resource) || string.IsNullOrEmpty(resource))
+        {
+            isBadRequest = true;
             return false;
+        }
 
-        throw new NotImplementedException();
+        GetMsRequestHeaders(cgiRequest, out var clientRequestId, out var returnClientRequestId);
+
+        request = new TokenRequest()
+        {
+            Resource = resource!,
+            ClientRequestId = clientRequestId,
+            ReturnClientRequestId = returnClientRequestId,
+        };
+        return true;
     }
 
     private static bool Match(string? left, string? right) =>
@@ -160,6 +197,19 @@ public record TokenRequest
         foreach (string key in collection.Keys)
             result[key] = collection[key];
         return result;
+    }
+
+    /// <summary>
+    /// Gets values of <c>x-ms-client-request-id</c> and <c>x-ms-return-client-request-id</c> headers.
+    /// </summary>
+    private static void GetMsRequestHeaders(CgiRequest cgiRequest, out string? clientRequestId, out bool? returnClientRequestId)
+    {
+        clientRequestId = cgiRequest.Headers.GetValueOrDefault("x-ms-client-request-id");
+        returnClientRequestId = cgiRequest.Headers.TryGetValue("x-ms-return-client-request-id", out var returnHeader)
+            ? bool.TryParse(returnHeader, out var returnValue)
+                ? returnValue
+                : null
+            : null;
     }
 
     #endregion

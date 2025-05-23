@@ -19,9 +19,9 @@ public class TokenResponseTests
         var issuedAt = notBefore.AddMinutes(-1);
         var expiry = issuedAt.AddMinutes(5);
 
-        var token = CreateAccessToken(notBefore, issuedAt, expiry);
+        var token = CreateAccessToken("Resource", notBefore, issuedAt, expiry);
         var accessToken = new AccessToken(token, expiry, null, tokenType: "Token");
-        var response = new TokenResponse(accessToken, "Resource");
+        var response = new TokenResponse(accessToken);
 
         response.AccessToken.ShouldBe(token);
         response.Resource.ShouldBe("Resource");
@@ -35,6 +35,7 @@ public class TokenResponseTests
     }
 
     private static string CreateAccessToken(
+        string audience,
         DateTimeOffset notBefore,
         DateTimeOffset issuedAt,
         DateTimeOffset expiry)
@@ -42,6 +43,7 @@ public class TokenResponseTests
         var handler = new JwtSecurityTokenHandler();
         var tokenDescriptor = new SecurityTokenDescriptor
         {
+            Audience = audience,
             Subject = new ClaimsIdentity(),
             NotBefore = notBefore.UtcDateTime,
             IssuedAt = issuedAt.UtcDateTime,
