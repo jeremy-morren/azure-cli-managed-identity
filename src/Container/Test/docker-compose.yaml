@@ -6,9 +6,11 @@ services:
       context: ../../
       dockerfile: Container/Dockerfile
     volumes:
-      - "${USERPROFILE:-~}/.azure:/azureCli:ro"
+      - "${AZURE_CONFIG_DIR:-${USERPROFILE:-~}/.azure}:/azureCli:ro"
+    environment:
+      - "TF_BUILD=${TF_BUILD:-False}"
     ports:
-      - '8080:80/tcp'
+      - '50342:80/tcp'
     cpu_count: 1
     mem_limit: 32m
 

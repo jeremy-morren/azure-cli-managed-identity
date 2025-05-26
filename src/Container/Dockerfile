@@ -7,8 +7,6 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 EXPOSE 80/tcp
 
-ENTRYPOINT ["/usr/sbin/lighttpd", "-D", "-f", "/etc/lighttpd/lighttpd.conf"]
-
 # Install trimmed azure cli
 COPY Container/InstallAzureCliTrimmed.sh ./
 RUN chmod +x InstallAzureCliTrimmed.sh && ./InstallAzureCliTrimmed.sh && rm -f InstallAzureCliTrimmed.sh
@@ -34,7 +32,10 @@ RUN dotnet publish -c Release -o /app/publish -p "PublishAot=true"
 
 FROM base AS final
 COPY --from=build /app/publish /app
-COPY --chmod=111 Container/lighttpd.conf /etc/lighttpd/lighttpd.conf
+COPY --chmod=111 Container/lighttpd.conf /app/lighttpd.conf
+COPY --chmod=444 Container/Start.sh /app/Start.sh
+
+ENTRYPOINT ["/bin/sh", "/app/Start.sh"]
 
 #Healthcheck: invoke health endpoint of the CGI application
 HEALTHCHECK --interval=30s --start-period=2s --start-interval=3s --timeout=2s --retries=3 \

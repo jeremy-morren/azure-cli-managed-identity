@@ -22,7 +22,12 @@ services:
     image: jeremysv/azcli-managed-identity:latest
     volumes:
       #Mount the host azure config into the container (read-only)
-      - "${USERPROFILE:-~}/.azure:/azureCli:ro"
+      - "${AZURE_CONFIG_DIR:-${USERPROFILE:-~}/.azure}:/azureCli:ro"
+    environment:
+      # Allow app to check whether it is running in Azure Pipelines
+      - "TF_BUILD=${TF_BUILD:-False}"
+    ports:
+      - '50342:80/tcp'
     cpu_count: 1
     mem_limit: 32m
 
@@ -36,6 +41,30 @@ services:
         condition: service_healthy
 ```
 
+### Azure Pipelines
+
+On azure pipelines, the service can be used for easily running code that needs to authenticate to Azure.
+
+Example `azure-pipelines.yaml`:
+
+```yaml
+pool:
+  vmImage: ubuntu-latest
+steps:
+  #NB: Assuming docker-compose.yaml file above is defined at project root
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: 'ConnectedServiceName'
+      scriptType: pscore
+      scriptLocation: inlineScript
+      inlineScript: docker compose up -d --build --wait
+  
+  # Example C#: new ManagedIdentityCredential().GetToken(new TokenRequestContext(["https://management.azure.com/"])))
+  - script: dotnet run ...
+    env:
+      MSI_ENDPOINT: http://localhost:50342/oauth2/token
+
+```
 ### Source
 
 Source repository at https://github.com/jeremy-morren/azure-cli-managed-identity
