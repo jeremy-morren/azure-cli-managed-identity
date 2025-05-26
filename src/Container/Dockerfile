@@ -37,5 +37,5 @@ COPY --from=build /app/publish /app
 COPY --chmod=111 Container/lighttpd.conf /etc/lighttpd/lighttpd.conf
 
 #Healthcheck: invoke health endpoint of the CGI application
-HEALTHCHECK --interval=30s --start-period=1s --start-interval=2s --timeout=1s --retries=3 \
+HEALTHCHECK --interval=30s --start-period=2s --start-interval=3s --timeout=2s --retries=3 \
     CMD ["curl", "-sSf", "http://127.0.0.1/healthz" ]

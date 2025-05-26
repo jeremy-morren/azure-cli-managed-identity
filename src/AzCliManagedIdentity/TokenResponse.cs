@@ -25,8 +25,6 @@ public class TokenResponse
 
     public string? Resource => GetClaimValueString("aud");
 
-    public string AccessToken => _accessToken.Token;
-
     public string TokenType => _accessToken.TokenType;
 
     public long ExpiresOn => GetClaimValueLong("exp");
@@ -34,6 +32,8 @@ public class TokenResponse
     public long NotBefore => GetClaimValueLong("nbf");
 
     public long ExpiresIn => ExpiresOn - GetClaimValueLong("iat");
+
+    public string AccessToken => _accessToken.Token;
     
     private long GetClaimValueLong(string claimType)
     {
@@ -50,9 +50,10 @@ public class TokenResponse
     }
 
     /// <summary>
-    /// Not used by Managed Identity, included to complete the response.
+    /// Not used by managed identities for Azure resources, included because it's part of the expected token response structure.
     /// </summary>
     [SuppressMessage("Performance", "CA1822:Mark members as static")]
     [SuppressMessage("ReSharper", "UnusedMember.Global")]
+    [SuppressMessage("ReSharper", "MemberCanBeMadeStatic.Global")]
     public string RefreshToken => string.Empty;
 }

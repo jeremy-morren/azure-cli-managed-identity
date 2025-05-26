@@ -72,9 +72,9 @@ public static class TokenService
     /// </summary>
     public static void CopyFiles(string tempDir)
     {
-        // First: Copy generated files from the default Azure CLI config directory
+        // // First: Copy generated files from the default Azure CLI config directory
         foreach (var file in GetFiles(GetDefaultConfigDir(), DefaultFilesToCopy))
-            CopyFile(file, tempDir);
+            Copy.CopyFile(file, tempDir);
 
         // Then copy the files from the source Azure CLI config directory (i.e. mounted volume)
         var sourceConfig = EnvVariableHelpers.GetValue("SOURCE_AZURE_CONFIG");
@@ -82,7 +82,7 @@ public static class TokenService
             throw new DirectoryNotFoundException($"Source Azure CLI config directory not found: '{sourceConfig}'");
 
         foreach (var file in GetFiles(sourceConfig, SourceFilesToCopy))
-            CopyFile(file, tempDir);
+            Copy.CopyFile(file, tempDir);
     }
 
     /// <summary>
@@ -102,18 +102,14 @@ public static class TokenService
         "az.*",
         "azureProfile.json",
         "*config",
-        // Ignore any msal*.bin files (which will be encrypted and therefore unreadable by the container)
-        "msal*.json"
+        "service_principal_entries.json",
+        "msal_http*",
+        // Ignore any msal_token*.bin files (which will be encrypted and therefore unreadable by the container)
+        "msal_token*.json"
     ];
 
     private static IEnumerable<string> GetFiles(string directory, string[] patterns) =>
         patterns.SelectMany(pattern => Directory.GetFiles(directory, pattern, SearchOption.TopDirectoryOnly));
-
-    private static void CopyFile(string source, string destinationDir)
-    {
-        var destination = Path.Combine(destinationDir, Path.GetFileName(source));
-        File.Copy(source, destination);
-    }
 
     /// <summary>
     /// Returns default Azure CLI config directory (i.e. ~/.azure on Linux or %USERPROFILE%\.azure on Windows).

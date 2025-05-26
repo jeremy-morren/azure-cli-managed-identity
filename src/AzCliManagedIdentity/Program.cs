@@ -20,7 +20,7 @@ try
     var cgiRequest = CgiRequest.FromEnvironment();
     if (cgiRequest == null)
     {
-        CgiResponse.WriteResponse(HttpStatusCode.BadRequest);
+        CgiResponse.WriteResponse(HttpStatusCode.BadRequest, body: "Invalid CGI request");
         return 1;
     }
 
