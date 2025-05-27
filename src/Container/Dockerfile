@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/runtime-deps:9.0 AS base
+FROM mcr.microsoft.com/dotnet/runtime-deps:8.0 AS base
 
 #Install lighttpd
 RUN apt-get update && \
@@ -8,8 +8,7 @@ RUN apt-get update && \
 EXPOSE 80/tcp
 
 # Install trimmed azure cli
-COPY Container/InstallAzureCliTrimmed.sh ./
-RUN chmod +x InstallAzureCliTrimmed.sh && ./InstallAzureCliTrimmed.sh && rm -f InstallAzureCliTrimmed.sh
+RUN --mount=type=bind,source=Container/InstallAzureCliTrimmed.sh,target=/InstallAzureCliTrimmed.sh /InstallAzureCliTrimmed.sh
     
 # Add az cli virtual env to path
 ENV PATH="/opt/azcli/bin:$PATH"
@@ -33,10 +32,11 @@ RUN dotnet publish -c Release -o /app/publish -p "PublishAot=true"
 FROM base AS final
 COPY --from=build /app/publish /app
 COPY --chmod=111 Container/lighttpd.conf /app/lighttpd.conf
-COPY --chmod=444 Container/Start.sh /app/Start.sh
+COPY --chmod=555 Container/Start.sh /app/Start.sh
 
 ENTRYPOINT ["/bin/sh", "/app/Start.sh"]
 
-#Healthcheck: invoke health endpoint of the CGI application
-HEALTHCHECK --interval=30s --start-period=2s --start-interval=3s --timeout=2s --retries=3 \
+# Healthcheck: invoke health endpoint of the CGI application. 
+# Main use is on startup i.e. health shouldn't change after successful startup.
+HEALTHCHECK --interval=60s --start-period=2s --start-interval=3s --timeout=2s --retries=3 \
     CMD ["curl", "-sSf", "http://127.0.0.1/healthz" ]
