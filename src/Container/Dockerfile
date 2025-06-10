@@ -37,6 +37,5 @@ COPY --chmod=555 Container/Start.sh /app/Start.sh
 ENTRYPOINT ["/bin/sh", "/app/Start.sh"]
 
 # Healthcheck: invoke health endpoint of the CGI application. 
-# Main use is on startup i.e. health shouldn't change after successful startup.
-HEALTHCHECK --interval=60s --start-period=2s --start-interval=3s --timeout=2s --retries=3 \
+HEALTHCHECK --interval=30s --start-period=3s --start-interval=5s --timeout=3s --retries=3 \
     CMD ["curl", "-sSf", "http://127.0.0.1/healthz" ]
