@@ -54,4 +54,5 @@ ENV DOTNET_RUNNING_IN_CONTAINER=true
 
 COPY --from=download C:/AzureCLI C:/AzureCLI
 EXPOSE 8080
-RUN setx /M PATH "%PATH%;C:\AzureCLI\bin"
+
+RUN setx PATH "%PATH%;C:\AzureCLI\bin"
