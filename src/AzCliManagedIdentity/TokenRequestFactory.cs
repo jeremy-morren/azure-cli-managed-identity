@@ -58,7 +58,7 @@ public static class TokenRequestFactory
     /// Checks if the request URL is a managed identity request as used by Azure Virtual Machines
     /// </summary>
     /// <remarks>
-    /// See <see href="https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-managed-identities-work-vm#system-assigned-managed-identity"/>
+    /// See <see href="https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http"/>
     /// </remarks>
     public static bool TryCreateVirtualMachineRequest(
         HttpRequest request,

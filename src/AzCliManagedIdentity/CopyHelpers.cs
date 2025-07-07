@@ -1,6 +1,6 @@
 ﻿namespace AzCliManagedIdentity;
 
-public class Copy
+public static class CopyHelpers
 {
     public static void CopyDirectory(string source, string destination)
     {

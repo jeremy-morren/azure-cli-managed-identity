@@ -55,11 +55,9 @@ python3 -m venv "$VENV"
     urllib3
 
 # Remove unnecessary azure CLI files to reduce image size
-du -s -h -t 1M $VENV/lib/python3.*/site-packages/azure/cli/command_modules/* | awk '{print $2}' | xargs rm -r
 rm -r $VENV/lib/python3.*/site-packages/azure/mgmt/resource/policy/v*
-rm -r $VENV/lib/python3.*/site-packages/azure/mgmt/resource/templatespecs/v*
 rm -r $VENV/lib/python3.*/site-packages/azure/mgmt/resource/resources/v*
-rm -r $VENV/lib/python3.*/site-packages/azure/mgmt/resource/deployment*/v*
+du -s -h -t 1M $VENV/lib/python3.*/site-packages/azure/cli/command_modules/* | awk '{print $2}' | xargs rm -r
 
 # Uninstall pip and venv to reduce image size
 apt-get remove -y --purge \

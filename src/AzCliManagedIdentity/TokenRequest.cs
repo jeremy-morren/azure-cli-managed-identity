@@ -1,17 +1,10 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Web;
-using Azure.Core;
-// ReSharper disable MemberCanBePrivate.Global
-// ReSharper disable UnusedAutoPropertyAccessor.Global
+﻿using Azure.Core;
 
 namespace AzCliManagedIdentity;
 
 /// <summary>
 /// A managed identity token request
 /// </summary>
-/// <remarks>
-/// See <see href="https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http"/>
-/// </remarks>
 public record TokenRequest
 {
     /// <summary>
