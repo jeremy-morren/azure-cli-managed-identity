@@ -1,88 +1,29 @@
-﻿using System.Net;
-using AzCliManagedIdentity;
-using Azure.Identity;
+﻿using AzCliManagedIdentity;
+using Serilog;
 
-var cts = new CancellationTokenSource();
-Console.CancelKeyPress += (_, e) =>
-{
-    e.Cancel = true; // Prevent the process from terminating.
-    cts.Cancel();
-};
+const string outputTemplate = "[{Timestamp:yy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}";
 
-/*
- * Exit codes:
- * 0 - Success
- * 1 - Error
- * 2 - Cancelled
- */
 try
 {
-    var cgiRequest = CgiRequest.FromEnvironment();
-    if (cgiRequest == null)
-    {
-        CgiResponse.WriteResponse(HttpStatusCode.BadRequest, body: "Invalid CGI request");
-        return 1;
-    }
+    Log.Logger = new LoggerConfiguration()
+        .MinimumLevel.Debug()
+        .WriteTo.Console(outputTemplate: outputTemplate)
+        .CreateLogger();
 
-    // Handle healthcheck requests
-    if (Healthcheck.IsHealthcheck(cgiRequest))
-    {
-        await Healthcheck.Invoke(cts.Token);
-        return 0;
-    }
+    var builder = WebApplication.CreateSlimBuilder(args);
 
-    // Check if the request is a managed identity request
-    if (!TokenRequest.TryCreateRequest(cgiRequest, out var tokenRequest, out var errorCode))
-    {
-        if (errorCode == ErrorCode.None)
-        {
-            // Not found
-            CgiResponse.WriteResponse(HttpStatusCode.NotFound);
-            return 0;
-        }
+    builder.Host.UseSerilog();
 
-        // Bad request
-        var error = ErrorResponseFactory.FromCode(errorCode);
-        CgiResponse.WriteJsonResponse(HttpStatusCode.BadRequest,
-            error,
-            AccessTokenJsonSerializerContext.Default.ErrorResponse);
-
-        return 0;
-    }
-
-    // For now, ObjectId, ClientId, and AzureResourceId are not supported
-    if (tokenRequest.ObjectId != null || tokenRequest.ClientId != null || tokenRequest.AzureResourceId != null)
-    {
-        CgiResponse.WriteResponse(HttpStatusCode.NotImplemented);
-        return 0;
-    }
-
-    // Try to get the token, write error if it fails
-    try
-    {
-        var token = await TokenService.RequestAzureCliToken(tokenRequest, cts.Token);
-        CgiResponse.WriteJsonResponse(HttpStatusCode.OK,
-            token,
-            AccessTokenJsonSerializerContext.Default.TokenResponse);
-    }
-    catch (AuthenticationFailedException ex)
-    {
-        var error = ExceptionErrorResponseFactory.FromException(ex);
-        // Write error to standard error for logging
-        Console.Error.WriteLine($"{ex.GetType().FullName}: {ex.Message}");
-        CgiResponse.WriteJsonResponse(HttpStatusCode.BadRequest,
-            error,
-            AccessTokenJsonSerializerContext.Default.ErrorResponse);
-    }
-
-    return 0;
+    var app = builder.Build();
+    app.UseSerilogRequestLogging();
+    new ApiPipeline(new TokenService()).MapEndpoints(app);
+    app.Run();
 }
-catch (OperationCanceledException ex) when (ex.CancellationToken == cts.Token)
+catch (Exception e)
 {
-    return 2;
+    Log.Fatal(e, "Application failed to start");
 }
-catch (Exception ex)
+finally
 {
-    CgiResponse.WriteError(ex.ToString());
-    return 1;
+    Log.CloseAndFlush();
 }

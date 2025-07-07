@@ -22,7 +22,10 @@ ENV SOURCE_AZURE_CONFIG="/azureCli"
 ENV AZURE_CLI_TIMEOUT="30"
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-RUN apt-get update && apt-get install -y clang zlib1g-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y \
+        clang zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY "AzCliManagedIdentity/AzCliManagedIdentity.csproj" ./
 RUN dotnet restore

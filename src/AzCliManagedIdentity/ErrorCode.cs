@@ -3,17 +3,12 @@
 public enum ErrorCode
 {
     /// <summary>
-    /// No request error (can be used to indicate Not Found)
-    /// </summary>
-    None,
-    
-    /// <summary>
     /// Generic bad request
     /// </summary>
     /// <remarks>
     /// <c>{"error":{"code":"invalid_request","message":"Invalid request"}}</c>
     /// </remarks>
-    BadRequest,
+    BadRequest = 1,
     
     /// <summary>
     /// <c>Metadata:true</c> header not specified
@@ -21,7 +16,7 @@ public enum ErrorCode
     /// <remarks>
     /// <c>{"error":{"code":"bad_request_102","message":"Required metadata header not specified"}}</c>
     /// </remarks>
-    MetadataHeaderMissing,
+    MetadataHeaderMissing = 2,
     
     /// <summary>
     /// Required resource parameter not specified
@@ -29,10 +24,5 @@ public enum ErrorCode
     /// <remarks>
     /// <c>{"error":{"code":"invalid_request","message":"Required audience parameter not specified"}}</c>
     /// </remarks>
-    ResourceNotSpecified,
-    
-    /// <summary>
-    /// Azure CLI credential unavailable
-    /// </summary>
-    CredentialUnavailable,
+    ResourceNotSpecified  = 3
 }

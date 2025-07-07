@@ -27,7 +27,7 @@ public class TokenResponseTests
         response.ExpiresIn.ShouldBe(expiry.ToUnixTimeSeconds() - issuedAt.ToUnixTimeSeconds());
 
         // Test serialization
-        JsonSerializer.Serialize(response, AccessTokenJsonSerializerContext.Default.TokenResponse)
+        JsonSerializer.Serialize(response, ApiJsonSerializerContext.Default.TokenResponse)
             .ShouldContain($"\"access_token\":\"{token}\"");
     }
 

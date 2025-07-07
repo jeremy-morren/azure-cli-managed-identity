@@ -8,7 +8,7 @@ namespace AzCliManagedIdentity;
     IncludeFields = false)]
 [JsonSerializable(typeof(TokenResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
-public partial class AccessTokenJsonSerializerContext : JsonSerializerContext
+public partial class ApiJsonSerializerContext : JsonSerializerContext
 {
     
 }

@@ -1,11 +1,10 @@
-﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
-using Azure.Identity;
+﻿using Azure.Identity;
+
 // ReSharper disable MethodHasAsyncOverload
 
 namespace AzCliManagedIdentity;
 
-public static class TokenService
+public class TokenService : ITokenService
 {
     /// <summary>
     /// Requests a token using the Azure CLI credential.
@@ -14,7 +13,7 @@ public static class TokenService
     /// This method cannot be run in parallel (due to the environment variable)
     /// Shouldn't be a problem for a CGI process
     /// </remarks>
-    public static async Task<TokenResponse> RequestAzureCliToken(TokenRequest request, CancellationToken ct)
+    public async Task<TokenResponse> RequestAzureCliToken(TokenRequest request, CancellationToken ct)
     {
         LogRequest(request);
         // First copy the Azure CLI config files to a temp directory
@@ -72,7 +71,7 @@ public static class TokenService
     /// </summary>
     public static void CopyFiles(string tempDir)
     {
-        // // First: Copy generated files from the default Azure CLI config directory
+        // First: Copy generated files from the default Azure CLI config directory
         foreach (var file in GetFiles(GetDefaultConfigDir(), DefaultFilesToCopy))
             Copy.CopyFile(file, tempDir);
 
@@ -141,15 +140,23 @@ public static class TokenService
             return;
         }
 
-        // Check for the msal_token_cache.json file. If not present, write warning about token encryption
-        var msalTokenCacheFile = Path.Combine(tempDir, "msal_token_cache.json");
-        if (!File.Exists(msalTokenCacheFile))
+        // Check for the msal_token_cache.json file
+        var msalTokenCacheFileJson = Path.Combine(tempDir, "msal_token_cache.json");
+        if (File.Exists(msalTokenCacheFileJson))
+            return;
+
+        // If not present, check if the msal_token_cache.bin file exists. If it is, print a warning about token encryption being enabled
+        var msalTokenCacheFileBin = Path.Combine(tempDir, "msal_token_cache.bin");
+        if (File.Exists(msalTokenCacheFileBin))
             Console.Error.WriteLine("""
-                                    Warning: msal_token_cache.json not found. This means token encryption is enabled (default on Windows).
+                                    Warning: Token encryption is enabled (default on Windows).
                                     This will cause all token requests to fail. To fix this error, run the following command:
                                     az config set core.encrypt_token_cache=false
                                     See https://github.com/Azure/azure-cli/issues/29193#issuecomment-2174836155
                                     """);
+        else
+            Console.Error.WriteLine("Warning: msal_token_cache.json not found. Ensure that the Azure CLI config directory is mounted correctly");
+
     }
 
 }

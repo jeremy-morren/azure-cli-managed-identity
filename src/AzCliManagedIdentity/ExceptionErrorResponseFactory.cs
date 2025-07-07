@@ -16,17 +16,14 @@ public static partial class ExceptionErrorResponseFactory
     private static string GetErrorMessage(AuthenticationFailedException ex)
     {
         var interactiveError = InteractiveErrorRegex().Match(ex.Message);
-        if (interactiveError.Success)
-        {
-            var command = interactiveError.Groups["Command"].Value;
-            return $"Interactive authentication required. Please run {command}";
-        }
+        if (!interactiveError.Success) return ex.Message;
 
-        return ex.Message;
+        var command = interactiveError.Groups["Command"].Value;
+        return $"Interactive authentication required. Please run {command}";
     }
     
     [GeneratedRegex(
         @"Interactive authentication is needed\. Please run:\W+(?<Command>az login --scope [^ ]+)",
         RegexOptions.Multiline | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
-    public static partial Regex InteractiveErrorRegex();
+    private static partial Regex InteractiveErrorRegex();
 }
