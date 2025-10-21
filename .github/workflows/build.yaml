@@ -1,0 +1,551 @@
+name: Build and push container image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '*'
+
+env:
+  # The name of the Docker image to be built and pushed to GHCR
+  # The image name is derived from the GitHub repository name and the GitHub Container Registry (GHCR) URL.
+  # The image name will be in the format: ghcr.io/<owner>/<repo>
+  GHCR_IMAGE: ghcr.io/${{ github.repository }}
+
+  TEST_PROJECT: src/AzCliManagedIdentity.Tests/AzCliManagedIdentity.Tests.csproj
+  API_PROJECT: src/AzCliManagedIdentity/AzCliManagedIdentity.csproj
+
+  DOTNET_ARGS: --configuration Release --verbosity Minimal
+
+  DOCKERFILE: src/Container/Dockerfile
+
+permissions:
+  # Global permissions for the workflow, which can be overridden at the job level
+  contents: read
+
+concurrency:
+  # This concurrency group ensures that only one job in the group runs at a time.
+  # If a new job is triggered, the previous one will be canceled.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: true
+      matrix:
+        rid:
+          - linux-x64
+          - linux-arm64
+          - win-x64
+          - win-arm64
+    
+    runs-on: ${{ matrix.rid == 'linux-x64' && 'ubuntu-latest' ||
+                 matrix.rid == 'linux-arm64' && 'ubuntu-24.04-arm' ||
+                 matrix.rid == 'win-x64' && 'windows-latest' ||
+                 matrix.rid == 'win-arm64' && 'windows-11-arm' }}
+
+    env:
+      # Output test project executable
+      entrypoint: ${{ startsWith(matrix.rid, 'linux') && 'AzCliManagedIdentity.Tests' ||
+                      startsWith(matrix.rid, 'win') && 'AzCliManagedIdentity.Tests.exe' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3 # v4.0.0
+        with:
+          dotnet-version: '8.x'
+          dotnet-quality: 'ga'
+
+      - run: >-
+          dotnet publish ${{ env.TEST_PROJECT }} -r ${{ matrix.rid }} 
+          /p:AotMsCodeCoverageInstrumentation=true 
+          /p:EmitCompilerGeneratedFiles=true
+          "/p:CompilerGeneratedFilesOutputPath=${{ runner.temp }}/TestResults/Generated/${{ matrix.rid }}"
+          -o ${{ runner.temp }}/publish 
+          ${{ env.DOTNET_ARGS }}
+        name: Publish test project
+
+      - run: >-
+          ${{ runner.temp }}/publish/${{ env.entrypoint }} 
+          --coverage --coverage-output-format cobertura 
+          --report-trx --results-directory ${{ runner.temp }}/TestResults
+        name: Run tests (AOT)
+
+      - name: Remove absolute paths from coverage files
+        shell: pwsh
+        run: |
+          $workDir = (pwd).Path + [IO.Path]::DirectorySeparatorChar
+          Write-Host "Working directory: $workDir"
+          $testResultsDir = [IO.DirectoryInfo]::new("${{ runner.temp }}/TestResults/").FullName
+          Write-Host "Test Results: $testResultsDir"
+          Get-ChildItem -Path $testResultsDir -Filter *.xml -Recurse | ForEach-Object {
+            $f = $_.FullName
+            $xml = Get-Content $f -Raw
+            $xml = $xml.Replace(" filename=`"${workDir}", ' filename="')
+            $xml = $xml.Replace(" filename=`"${testResultsDir}", ' filename="')
+            Set-Content -Path $f -Value $xml
+            Write-Host "Processed coverage file: $f"
+          }
+        
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: test-results-${{ matrix.rid }}
+          path: ${{ runner.temp }}/TestResults
+
+  code-coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3 # v4.0.0
+        with:
+          dotnet-version: '8.x'
+          dotnet-quality: 'ga'
+
+      # Download all test results
+      - name: Download test results
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          path: ${{ runner.temp }}/test-results
+          pattern: test-results-*
+          merge-multiple: true
+
+      - run: ls -laR ${{ runner.temp }}/test-results
+        name: 'List test results files'
+
+      # See https://github.com/danielpalme/ReportGenerator-GitHub-Action?tab=readme-ov-file
+      - name: Generate code coverage report
+        uses: danielpalme/ReportGenerator-GitHub-Action@9870ed167742d546b99962ff815fcc1098355ed8 # 5.4.17
+        with:
+          reports: '${{ runner.temp }}/test-results/*.xml' # REQUIRED # The coverage reports that should be parsed (separated by semicolon). Globbing is supported.
+          targetdir: 'coveragereport' # REQUIRED # The directory where the generated report should be saved.
+          reporttypes: 'Html_Dark;HtmlInline;Cobertura;MarkdownSummaryGithub' # The output formats and scope (separated by semicolon) Values: Badges, Clover, Cobertura, OpenCover, CsvSummary, Html, Html_Dark, Html_Light, Html_BlueRed, HtmlChart, HtmlInline, HtmlInline_AzurePipelines, HtmlInline_AzurePipelines_Dark, HtmlInline_AzurePipelines_Light, HtmlSummary, Html_BlueRed_Summary, JsonSummary, CodeClimate, Latex, LatexSummary, lcov, Markdown, MarkdownSummary, MarkdownAssembliesSummary, MarkdownSummaryGithub, MarkdownDeltaSummary, MHtml, SvgChart, SonarQube, TeamCitySummary, TextSummary, TextDeltaSummary, Xml, XmlSummary
+          sourcedirs: '.;${{ runner.temp }}/test-results/Generated' # Optional directories which contain the corresponding source code (separated by semicolon). The source directories are used if coverage report contains classes without path information.
+          assemblyfilters: '+AzCliManagedIdentity' # Optional list of assemblies that should be included or excluded in the report. Exclusion filters take precedence over inclusion filters. Wildcards are allowed.
+          classfilters: '+*' # Optional list of classes that should be included or excluded in the report. Exclusion filters take precedence over inclusion filters. Wildcards are allowed.
+          filefilters: '+*;-**/RegexGenerator.g.cs' # Include all files except generated regex files
+          riskhotspotassemblyfilters: '+*' # Optional list of assemblies that should be included or excluded in the risk hotspots. Exclusion filters take precedence over inclusion filters. Wildcards are allowed.
+          riskhotspotclassfilters: '+*' # Optional list of classes that should be included or excluded in the risk hotspots. Exclusion filters take precedence over inclusion filters. Wildcards are allowed.
+          verbosity: 'Info' # The verbosity level of the log messages. Values: Verbose, Info, Warning, Error, Off
+          tag: '${{ github.run_number }}_${{ github.run_id }}'
+          toolpath: 'reportgeneratortool' # Default directory for installing the dotnet tool.
+      
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: coverage-report
+          path: coveragereport
+
+      - name: Publish coverage in build summary # Only applicable if 'MarkdownSummaryGithub' or one of the other Markdown report types is generated
+        run: cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY # Adjust path and filename if necessary
+        shell: bash
+
+  build-windows:
+    if: github.ref_name == 'main'
+    needs: test
+    permissions:
+      packages: write
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - amd64
+          # - arm64 - Uncomment when docker is available on Windows ARM64 runners
+  
+    runs-on: >-
+      ${{ matrix.platform == 'amd64' && 'windows-latest' ||
+          matrix.platform == 'arm64' && 'windows-11-arm' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3 # v4.0.0
+        with:
+          dotnet-version: '8.x'
+          dotnet-quality: 'ga'
+
+      - run: dotnet publish ${{ env.API_PROJECT }} ${{ env.DOTNET_ARGS }} -o ${{ runner.temp }}/publish
+        name: Publish app
+
+      - run: pwsh -File src/Container/DownloadAzureCliWin.ps1 -OutputPath ${{ runner.temp }}/AzureCLI
+        name: Download Azure CLI
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get container image metadata
+        id: meta
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
+        with:
+          images: ${{ env.GHCR_IMAGE }}
+
+      - name: Create Tag
+        id: tag
+        shell: pwsh
+        run: |
+          $tag = "temp-win-${{ github.sha }}-${{ matrix.platform }}"
+          Add-Content -Value "tag=${tag}" -Path $env:GITHUB_OUTPUT
+
+      - name: Build Image
+        id: build
+        # Use powershell.exe to take advantage of the fact that ConvertFrom-Json does not convert date strings to DateTime objects like pwsh does.
+        # See https://stackoverflow.com/a/74319203/6614154
+        shell: powershell
+        # DOCKER_METADATA_OUTPUT_JSON format: @ { tags: [], labels: {}, annotations: []}
+        run: |
+          $metadata = ConvertFrom-Json $env:DOCKER_METADATA_OUTPUT_JSON
+          $labels = @()
+          foreach ($l in $metadata.labels.PSObject.Properties) {
+            $labels += ("--label", "$($l.Name)=$($l.Value)")
+          }
+          $output = "${{ runner.temp }}/metadata"
+          docker build $labels `
+            --iidfile $output `
+            --tag ${{ env.GHCR_IMAGE }}:${{ steps.tag.outputs.tag }} `
+            --platform "windows/${{ matrix.platform }}" `
+            --file "${{ env.DOCKERFILE }}.windows" `
+            '${{ runner.temp }}'
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+          
+          $digest = Get-Content $output
+          docker image inspect $digest
+
+          $id = $digest.TrimStart("sha256:")
+          Add-Content -Value "imageId=${id}" -Path $env:GITHUB_OUTPUT
+
+      - name: Push Image
+        run: docker push ${{ env.GHCR_IMAGE }}:${{ steps.tag.outputs.tag }}
+        
+      - name: Get image digest
+        id: get-digest
+        run: |
+          docker image inspect ${{ env.GHCR_IMAGE }}:${{ steps.tag.outputs.tag }}
+          $digest = docker image inspect "${{ env.GHCR_IMAGE }}:${{ steps.tag.outputs.tag }}" --format '{{ index .RepoDigests 0 }}'
+          $digest = $digest.Split('@')[1].Substring("sha256:".Length)
+          echo "Digest: $digest"
+          Add-Content -Value "digest=${digest}" -Path $env:GITHUB_OUTPUT
+          
+      - name: Export digest
+        shell: pwsh
+        run: |
+          mkdir ${{ runner.temp }}/digests
+          Set-Content -Value "" -Path ${{ runner.TEMP }}/digests/${{ steps.get-digest.outputs.digest }}
+
+      - name: Upload digest 
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: digests-win-${{ matrix.platform }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  build-linux:
+    if: github.ref_name == 'main'
+    needs: test
+    permissions:
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - amd64
+          - arm64
+  
+    runs-on: >-
+      ${{ matrix.platform == 'amd64' && 'ubuntu-latest' ||
+          matrix.platform == 'arm64' && 'ubuntu-24.04-arm' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3 # v4.0.0
+        with:
+          dotnet-version: '8.x'
+          dotnet-quality: 'ga'
+
+      - run: dotnet publish ${{ env.API_PROJECT }} ${{ env.DOTNET_ARGS }} -o ${{ runner.temp }}/publish
+        name: Publish app
+
+      - run: cp src/Container/*.sh ${{ runner.temp }}/
+        name: Copy container files
+
+      - name: Set up Docker Context for Buildx
+        id: buildx-context
+        run: docker context create builders
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
+        with:
+          endpoint: builders
+          platforms: linux/${{ matrix.platform }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get container image metadata
+        id: meta
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
+        with:
+          images: ${{ env.GHCR_IMAGE }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        with:
+          file: ${{ env.DOCKERFILE }}.linux
+          context: ${{ runner.temp }}
+          platforms: linux/${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
+          no-cache: true
+
+      - name: Export digest
+        run: |
+          mkdir -p ${{ runner.temp }}/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: digests-linux-${{ matrix.platform }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    # This job merges the Docker manifests for the different platforms built in the previous job.
+    name: Merge Docker manifests
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      packages: write
+
+    needs:
+      - build-linux
+      - build-windows
+      
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      
+    steps:
+      - name: Download digests
+        # This step downloads the digest files uploaded in the build job.
+        # It uses the actions/download-artifact action to download the artifacts with the pattern digests-*.
+        # The downloaded files are merged into the ${{ runner.temp }}/digests directory.
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Docker meta
+        # This step generates metadata for the Docker image.
+        # It uses the docker/metadata-action to create metadata based on the repository information.
+        # The metadata includes information such as the image name, tags, and labels.
+        id: meta
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
+        with:
+          images: ${{ env.GHCR_IMAGE }}
+          annotations: |
+            type=org.opencontainers.image.description,value=${{ github.event.repository.description || 'No description provided' }}
+          tags: |
+            type=raw,value=${{ github.ref_name }},enable=${{ github.ref_name == 'release' }}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
+        # This step sets up Docker Buildx, which is a Docker CLI plugin for extended build capabilities with BuildKit.
+        with:
+          driver-opts: |
+            network=host
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        # This step logs in to the GitHub Container Registry (GHCR) using the docker/login-action.
+        # It uses the GitHub actor's username and the GITHUB_TOKEN secret for authentication.
+        # The login is necessary to push the merged manifest list to GHCR.
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get execution timestamp with RFC3339 format
+        # This step gets the current execution timestamp in RFC3339 format.
+        # It uses the date command to get the current UTC time and formats it as a string.
+        # The timestamp is used for annotating the Docker manifest list.
+        id: timestamp
+        run: |
+          echo "timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
+
+      - name: Create manifest list and push
+        # This step creates a manifest list for the Docker images built for different platforms.
+        # It uses the docker buildx imagetools create command to create the manifest list.
+        # The manifest list is annotated with metadata such as description, creation timestamp, and source URL.
+        # The annotations are obtained from the metadata generated in the previous steps.
+        # The manifest list is pushed to the GitHub Container Registry (GHCR) with the specified tags.
+        working-directory: ${{ runner.temp }}/digests
+        id: manifest-annotate
+        continue-on-error: true
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            --annotation='index:org.opencontainers.image.description=${{ github.event.repository.description }}' \
+            --annotation='index:org.opencontainers.image.created=${{ steps.timestamp.outputs.timestamp }}' \
+            --annotation='index:org.opencontainers.image.url=${{ github.event.repository.url }}' \
+            --annotation='index:org.opencontainers.image.source=${{ github.event.repository.url }}' \
+            $(printf '${{ env.GHCR_IMAGE }}@sha256:%s ' *)
+
+      - name: Create manifest list and push without annotations
+        # This step creates a manifest list for the Docker images built for different platforms.
+        # It uses the docker buildx imagetools create command to create the manifest list.
+        # The manifest list is created without annotations if the previous step fails.
+        # The manifest list is pushed to the GitHub Container Registry (GHCR) with the specified tags.
+        if: steps.manifest-annotate.outcome == 'failure'
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.GHCR_IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect image
+        # This step inspects the created manifest list to verify its contents.
+        # It uses the docker buildx imagetools inspect command to display information about the manifest list.
+        # The inspection output will show the platforms and tags associated with the manifest list.
+        id: inspect
+        run: |
+          docker buildx imagetools inspect '${{ env.GHCR_IMAGE }}:${{ steps.meta.outputs.version }}'
+      
+      # Problem: We need to delete the windows temporary tags from GHCR to avoid cluttering the package versions.
+      # However, we need to leave the package i.e. result should be a package without any tags, same as docker buildx on linux.
+      # Solution: Push a new image with the same tag, which will create a new package version, then delete that new version.
+      - name: Create scratch image
+        id: scratch
+        run: |
+          echo "FROM scratch" > Dockerfile.scratch
+          echo "image=tmp-scratch:latest" >> $GITHUB_OUTPUT
+          docker build -f Dockerfile.scratch -t tmp-scratch:latest .
+      
+      - name: Delete temporary tag from GHCR
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          function OnError {
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Error occurred. Exiting with code $LASTEXITCODE"
+              exit $LASTEXITCODE
+            }
+          }
+          function HasTempTag {
+            param (
+              $Package
+            )
+            $tags = $Package.metadata.container.tags
+            foreach ($tag in $tags) {
+              if ($tag -like '*temp*' -and $tag -like '*${{ github.sha }}*') {
+                return $true
+              }
+            }
+            return $false
+          }
+
+          # First fetch all temporary tagged package versions and overwrite them with the scratch image
+
+          Write-Host "Fetching temporary tagged package versions"
+          $versions = gh api '/user/packages/container/${{ github.event.repository.name }}/versions' | ConvertFrom-Json ; OnError
+          $versions = $versions | ? { HasTempTag -Package $_ }
+          $versions | Format-List
+
+          $versions | % {
+            $_.metadata.container.tags | ForEach-Object {
+              $tag = $_
+              Write-Host "Overwriting ${tag}"
+              docker tag ${{ steps.scratch.outputs.image }} "${{ env.GHCR_IMAGE }}:${tag}"
+              docker push "${{ env.GHCR_IMAGE }}:${tag}" ; OnError
+            }
+          }
+
+          # Now delete the newly created package versions i.e. those we just pushed
+          Write-Host "Deleting temporary tagged package versions"
+          
+          $versions = gh api '/user/packages/container/${{ github.event.repository.name }}/versions' | ConvertFrom-Json ; OnError
+          $versions = $versions | ? { HasTempTag -Package $_ }
+          $versions | Format-List
+          $versions | ForEach-Object {
+            $id = $_.id
+            Write-Host "Deleting container package version with ID: ${id}"
+
+            gh api --method DELETE "/user/packages/container/${{ github.event.repository.name }}/versions/${id}" ; OnError
+          }
+            
+      # Provide the output image for downstream jobs
+      # tags property actually has the entire image reference
+      - name: Set output image
+        id: image
+        run: |
+          tag="$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
+          echo "Image: ${tag}"
+          echo "image=${tag}" >> $GITHUB_OUTPUT
+
+  test-images:
+    needs: [merge]
+    permissions:
+      packages: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - windows-latest
+          # - windows-11-arm - Uncomment when containers are available on Windows ARM64 runners
+    
+    runs-on: ${{ matrix.runs-on }}
+    env:
+      # Output test project executable
+      volume: ${{ startsWith(matrix.runs-on, 'ubuntu') && './:/.azure:ro' ||
+                  startsWith(matrix.runs-on, 'windows') && '.\:C:\.azure:ro' }}
+    steps:
+      - run: docker run -d -p 8080:80 --name api -v "${{ env.volume }}" "${{ needs.merge.outputs.image }}"
+        name: Run API container
+
+      - run: curl http://localhost:8080/healthz -i --retry-all-errors --retry 5 --retry-delay 2  --max-time 60
+        name: Invoke Healthcheck
+        continue-on-error: true
+
+      - run: 'curl http://localhost:8080/token -i --data-urlencode "resource=https://management.azure.com/.default" -H "Metadata: true"'
+        name: Invoke Token Endpoint
+        continue-on-error: true
+
+      - run: docker logs api
+        name: Show container logs
+
+      - run: docker container inspect api
+        name: Inspect container
+
+      - run: docker stop api && docker rm api
+        name: Clean up container

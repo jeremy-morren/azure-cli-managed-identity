@@ -1,0 +1,26 @@
+FROM mcr.microsoft.com/dotnet/runtime-deps:8.0 AS base
+
+# Install trimmed azure cli
+RUN --mount=type=bind,source=InstallAzureCliTrimmed.sh,target=/InstallAzureCliTrimmed.sh \
+    sh /InstallAzureCliTrimmed.sh
+
+# Add az cli virtual env to path
+ENV PATH="/opt/azcli/bin:$PATH"
+
+# Location of the Azure CLI config files mounted from the host
+ENV SOURCE_AZURE_CONFIG="/.azure"
+
+# The timeout for requesting a token in seconds
+ENV MSI_REQUEST_TIMEOUT="30"
+
+FROM base AS final
+EXPOSE 80/tcp
+ENV ASPNETCORE_HTTP_PORTS=80
+
+WORKDIR /app
+COPY publish .
+ENTRYPOINT ["/app/AzCliManagedIdentity"]
+
+# Healthcheck: invoke health endpoint
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 --start-period=3s --start-interval=5s \
+    CMD ["curl", "-sSf", "http://127.0.0.1/healthz" ]

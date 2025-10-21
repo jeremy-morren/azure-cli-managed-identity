@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzCliManagedIdentity", "AzCliManagedIdentity\AzCliManagedIdentity.csproj", "{E73593BE-B728-4C6B-BB04-AECC8F425788}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzCliManagedIdentity.Tests", "AzCliManagedIdentity.Tests\AzCliManagedIdentity.Tests.csproj", "{4049B018-BEE1-435E-B8A2-64DA316A6E74}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C984FAB8-1F87-482E-B39E-D048BB4A8B12}"
+	ProjectSection(SolutionItems) = preProject
+		global.json = ..\global.json
+		..\.github\workflows\build.yaml = ..\.github\workflows\build.yaml
+		..\README.md = ..\README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Container", "Container", "{35DC9F1C-C4D9-475A-A779-30CE28FE80DD}"
+	ProjectSection(SolutionItems) = preProject
+		Container\DownloadAzureCliWin.ps1 = Container\DownloadAzureCliWin.ps1
+		Container\Dockerfile.linux = Container\Dockerfile.linux
+		Container\Dockerfile.windows = Container\Dockerfile.windows
+		Container\InstallAzureCliTrimmed.sh = Container\InstallAzureCliTrimmed.sh
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E73593BE-B728-4C6B-BB04-AECC8F425788}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E73593BE-B728-4C6B-BB04-AECC8F425788}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E73593BE-B728-4C6B-BB04-AECC8F425788}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E73593BE-B728-4C6B-BB04-AECC8F425788}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4049B018-BEE1-435E-B8A2-64DA316A6E74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4049B018-BEE1-435E-B8A2-64DA316A6E74}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4049B018-BEE1-435E-B8A2-64DA316A6E74}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4049B018-BEE1-435E-B8A2-64DA316A6E74}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

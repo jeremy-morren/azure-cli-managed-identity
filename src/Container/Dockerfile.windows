@@ -1,0 +1,26 @@
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2022 AS final
+
+# Configure ASP.NET Core
+ENV DOTNET_RUNNING_IN_CONTAINER=true
+ENV ASPNETCORE_HTTP_PORTS=80
+EXPOSE 80/tcp
+
+COPY AzureCLI 'C:\AzureCLI'
+# Add the bin folder to PATH && initialize Azure CLI directory
+RUN setx PATH "%PATH%;C:\AzureCLI\bin" && "C:\AzureCLI\bin\az.cmd" --version
+
+# Disable encryption of the token cache. This will override the value in the mounted config file 
+# i.e. environment variables have precedence over config files
+# See https://learn.microsoft.com/en-us/cli/azure/azure-cli-configuration?view=azure-cli-latest
+ENV AZURE_CORE_ENCRYPT_TOKEN_CACHE="false"
+
+# Location of the Azure CLI config files mounted from the host
+ENV SOURCE_AZURE_CONFIG="C:\.azure"
+# The timeout for requesting a token in seconds
+ENV MSI_REQUEST_TIMEOUT="60"
+
+COPY publish 'C:\app'
+ENTRYPOINT ["C:\\app\\AzCliManagedIdentity.exe"]
+
+HEALTHCHECK --interval=30s --timeout=8s --retries=5 --start-period=3s --start-interval=10s \
+    CMD ["C:\\Windows\\System32\\curl.exe", "-sSf", "http://127.0.0.1/healthz"]
