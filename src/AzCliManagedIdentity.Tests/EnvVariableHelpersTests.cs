@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using AzCliManagedIdentity.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace AzCliManagedIdentity.Tests;
 

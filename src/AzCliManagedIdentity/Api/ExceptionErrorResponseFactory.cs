@@ -3,6 +3,7 @@ using AzCliManagedIdentity.ManagedIdentity;
 using AzCliManagedIdentity.OAuth2;
 using Azure.Identity;
 // ReSharper disable ArrangeObjectCreationWhenTypeNotEvident
+// ReSharper disable StringLiteralTypo
 
 namespace AzCliManagedIdentity.Api;
 
@@ -61,7 +62,8 @@ public static partial class ExceptionErrorResponseFactory
         {
             Error = code switch
             {
-                "AADSTS500011" => ErrorResponseFactory.InvalidScope,
+                "AADSTS500011" => ErrorResponseFactory.InvalidScope, // The resource principal named {0} was not found in the tenant named {1}
+                "AADSTS50078" => ErrorResponseFactory.InteractiveAuthenticationRequired, // User needs to perform MFA
                 _ => ErrorResponseFactory.BadRequest
             },
             ErrorDescription = $"{code}: {oauth2Error.Groups["Message"].Value}",
@@ -75,7 +77,7 @@ public static partial class ExceptionErrorResponseFactory
     /// <summary>
     /// Regex that matches an az cli error message from an OAuth2 failure e.g. invalid scope.
     /// </summary>
-    [GeneratedRegex(@"ERROR: (?<Code>\w+):\W+(?<Message>.+)\W+Trace ID: (?<TraceId>.+) Correlation ID: (?<CorrelationId>.+) Timestamp: (?<Timestamp>.+)$",
+    [GeneratedRegex(@"ERROR: (?<Code>\w+):\W+(?<Message>.+)\W+Trace ID: (?<TraceId>.+) Correlation ID: (?<CorrelationId>.+) Timestamp: (?<Timestamp>.+)\r?$",
         RegexOptions.Multiline | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex OAuth2ErrorRegex();
 
@@ -87,7 +89,7 @@ public static partial class ExceptionErrorResponseFactory
         var command = interactiveError.Groups["Command"].Value;
         var response = new OAuth2ErrorResponse()
         {
-            Error = "interactive_authentication_required",
+            Error = ErrorResponseFactory.InteractiveAuthenticationRequired,
             ErrorDescription = $"Interactive authentication required. Please run {command}"
         };
         return new(false, response);

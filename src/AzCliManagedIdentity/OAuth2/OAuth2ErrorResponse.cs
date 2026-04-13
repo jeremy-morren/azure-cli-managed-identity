@@ -3,7 +3,7 @@
 /// <summary>
 /// A response from an OAuth2 token endpoint indicating an error
 /// </summary>
-public class OAuth2ErrorResponse
+public record OAuth2ErrorResponse
 {
     public required string Error { get; init; }
 

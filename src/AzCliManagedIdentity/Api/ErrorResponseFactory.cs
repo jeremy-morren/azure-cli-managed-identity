@@ -55,4 +55,9 @@ public static class ErrorResponseFactory
     /// Error code indicating that the credential is unavailable
     /// </summary>
     public const string CredentialUnavailable = "credential_unavailable";
+
+    /// <summary>
+    /// Error code indicating that the user needs to perform interactive authentication
+    /// </summary>
+    public const string InteractiveAuthenticationRequired = "interactive_authentication_required";
 }

@@ -1,4 +1,4 @@
-﻿namespace AzCliManagedIdentity;
+﻿namespace AzCliManagedIdentity.Framework;
 
 public sealed class TempDirectory : IDisposable
 {

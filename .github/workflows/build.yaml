@@ -19,6 +19,8 @@ env:
 
   DOCKERFILE: src/Container/Dockerfile
 
+  DOTNET_VERSION: '10.x'
+
 permissions:
   # Global permissions for the workflow, which can be overridden at the job level
   contents: read
@@ -55,7 +57,7 @@ jobs:
 
       - uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3 # v4.0.0
         with:
-          dotnet-version: '8.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
           dotnet-quality: 'ga'
 
       - run: >-
@@ -105,7 +107,7 @@ jobs:
 
       - uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3 # v4.0.0
         with:
-          dotnet-version: '8.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
           dotnet-quality: 'ga'
 
       # Download all test results
@@ -169,7 +171,7 @@ jobs:
 
       - uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3 # v4.0.0
         with:
-          dotnet-version: '8.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
           dotnet-quality: 'ga'
 
       - run: dotnet publish ${{ env.API_PROJECT }} ${{ env.DOTNET_ARGS }} -o ${{ runner.temp }}/publish
@@ -277,7 +279,7 @@ jobs:
 
       - uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3 # v4.0.0
         with:
-          dotnet-version: '8.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
           dotnet-quality: 'ga'
 
       - run: dotnet publish ${{ env.API_PROJECT }} ${{ env.DOTNET_ARGS }} -o ${{ runner.temp }}/publish
@@ -533,7 +535,7 @@ jobs:
       - run: docker run -d -p 8080:80 --name api -v "${{ env.volume }}" "${{ needs.merge.outputs.image }}"
         name: Run API container
 
-      - run: curl http://localhost:8080/healthz -i --retry-all-errors --retry 5 --retry-delay 2  --max-time 60
+      - run: curl http://localhost:8080/healthz -i --retry-all-errors --retry 5 --retry-delay 2 --max-time 60 -sS
         name: Invoke Healthcheck
         continue-on-error: true
 

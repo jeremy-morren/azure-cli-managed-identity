@@ -1,4 +1,5 @@
-﻿using AzCliManagedIdentity.ManagedIdentity;
+﻿using AzCliManagedIdentity.Framework;
+using AzCliManagedIdentity.ManagedIdentity;
 using Azure.Core;
 using Azure.Identity;
 using ILogger = Serilog.ILogger;
@@ -12,11 +13,11 @@ public class TokenService : ITokenService
     private readonly ILogger _logger;
     private readonly TokenCredential _credential;
 
-    public TokenService(ILogger logger)
+    public TokenService(ILogger logger, TokenCredential? credential = null)
     {
         _logger = logger.ForContext<TokenService>();
 
-        _credential = new DefaultAzureCredential(
+        _credential = credential ?? new DefaultAzureCredential(
             new DefaultAzureCredentialOptions()
             {
                 ExcludeInteractiveBrowserCredential = true,

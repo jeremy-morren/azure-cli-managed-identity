@@ -1,7 +1,8 @@
-FROM mcr.microsoft.com/dotnet/runtime-deps:8.0 AS base
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0 AS base
 
 # Install trimmed azure cli
-RUN --mount=type=bind,source=Container/InstallAzureCliTrimmed.sh,target=/InstallAzureCliTrimmed.sh sh /InstallAzureCliTrimmed.sh
+RUN --mount=type=bind,source=src/Container/InstallAzureCliTrimmed.sh,target=/InstallAzureCliTrimmed.sh \
+    sh /InstallAzureCliTrimmed.sh
 
 # Add az cli virtual env to path
 ENV PATH="/opt/azcli/bin:$PATH"
@@ -12,15 +13,16 @@ ENV SOURCE_AZURE_CONFIG="/.azure"
 # The timeout for requesting a token in seconds
 ENV MSI_REQUEST_TIMEOUT="30"
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 RUN apt-get update && \
     apt-get install -y \
       clang zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
-COPY "AzCliManagedIdentity/AzCliManagedIdentity.csproj" .
+COPY "global.json" .
+COPY "src/AzCliManagedIdentity/AzCliManagedIdentity.csproj" .
 RUN dotnet restore
-COPY "AzCliManagedIdentity/" ./
+COPY "src/AzCliManagedIdentity/" ./
 RUN dotnet publish -c Release -o /app/publish
 
 FROM base AS final

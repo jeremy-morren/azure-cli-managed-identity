@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/windows/nanoserver:ltsc2022 AS final
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2025 AS final
 
 # Configure ASP.NET Core
 ENV DOTNET_RUNNING_IN_CONTAINER=true

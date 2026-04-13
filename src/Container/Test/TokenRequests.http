@@ -1,5 +1,5 @@
-﻿#@Endpoint=http://localhost:11430
-@Endpoint=http://localhost:8080
+﻿@Endpoint=http://localhost:11430
+#@Endpoint=http://localhost:8080
 @Resource=https://management.azure.com//.default
 
 ### Cloud shell request

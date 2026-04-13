@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/runtime-deps:8.0 AS base
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0 AS base
 
 # Install trimmed azure cli
 RUN --mount=type=bind,source=InstallAzureCliTrimmed.sh,target=/InstallAzureCliTrimmed.sh \

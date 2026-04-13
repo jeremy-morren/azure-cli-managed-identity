@@ -145,8 +145,10 @@ public class ApiPipeline
         }
         catch (AuthenticationFailedException ex)
         {
-            _logger.Error(ex, "Authentication failed while acquiring token for resource {Resource}", request.Resource);
+            _logger.Information(ex, "Authentication failed while acquiring token for resource {Resource}", request.Resource);
             var (badRequest, response) = getErrorFromException(ex);
+            _logger.Error("Failed to acquire token for resource {Resource}. BadRequest: {BadRequest}. Error: {Error}",
+                request.Resource, badRequest, response?.ToString());
             context.Response.StatusCode = badRequest
                 ? StatusCodes.Status400BadRequest
                 : StatusCodes.Status503ServiceUnavailable; // For non-client errors, return 503 Service Unavailable

@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using AzCliManagedIdentity.Framework;
+using Serilog;
 
 namespace AzCliManagedIdentity.ManagedIdentity;
 

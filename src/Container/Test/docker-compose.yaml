@@ -3,8 +3,8 @@ name: msi
 services:
   managed-identity:
     build:
-      context: ../../
-      dockerfile: Container/Test/Dockerfile.linux
+      context: ../../../
+      dockerfile: src/Container/Test/Dockerfile.linux
     volumes:
       - "${AZURE_CONFIG_DIR:-${USERPROFILE:-~}/.azure}:/.azure:ro"
     ports:
